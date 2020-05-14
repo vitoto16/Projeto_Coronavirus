@@ -1,27 +1,53 @@
-from raspagem_corona import RaspagemCorona
+from raspagem_corona import RaspagemCorona, TratamentoDados
 
 if __name__ == '__main__':
 
+	#Determinando limites
+	primeira_linha = 4
+	ultima_linha = 34
+	linha_inexistente = [5]
+
 	#Declarando o Dicionário Principal
-	main_dictionary = {}
+	main_dictionary = dict()
 
 	#Instanciando a classe e acessando o site
 	raspador = RaspagemCorona()
 
+	#Declarando lista de cabeçalhos
+	heads = list()
+
+	#Loop de coleta de cabeçalhos
+	for cabecalho in range(1, 13):
+		heads.append(raspador.Cabecalhos(cabecalho).replace('\n', ' '))
+
 	#Loop de coleta de dados
-	for i in range(4, 45):
-		heads = []
-		dados = []
-		for j in range(1, 13):
-			heads.append(raspador.Cabecalhos(j).replace('\n', ' '))
+	for linha in range(primeira_linha, ultima_linha):
+
+		if linha not in linha_inexistente:
+
+			#Cada linha começa com uma lista de dados em branco
+			dados = list()
+
+			for coluna in range(1, 13):
+
+				#Adiciona o dado coletado à lista de dados da linha
+				dado = raspador.RasparDados(linha, coluna).replace(' ', '')
 				
-			data = raspador.RasparDados(i, j)
-			if data:
-				dados.append(data)
+				#Preparando os dados para a tabela
+				dado = raspador.TratarString(dado)
 
-		#Incorporando os dados ao Dicionário Principal
-		raspador.ParaDicionario(heads, dados, main_dictionary)
+				dados.append(dado)
 
-	print(main_dictionary)
+			#Incorporando os dados ao Dicionário Principal
+			raspador.ParaDicionario(heads, dados, main_dictionary)
+		else:
+			continue
 
 	raspador.driver.quit()
+
+	tratamento = TratamentoDados()
+
+	df = tratamento.ParaDataFrame(main_dictionary)
+	tratamento.ParaExcel(df)
+
+	print(df)

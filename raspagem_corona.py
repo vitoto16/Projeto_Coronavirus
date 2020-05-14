@@ -1,4 +1,6 @@
 from selenium import webdriver
+import pandas as pd
+import numpy as np
 
 class RaspagemCorona():
 
@@ -29,6 +31,41 @@ class RaspagemCorona():
 		full_data = dict(zip(heads, data))
 		
 		#Incorporando país como chave e dados como valores
-		for i in full_data.values():
-			if i.isalpha():
-				dicio[i] = full_data
+		dicio[data[0]] = full_data
+
+	#Preparando os numeros para DataFrame
+	def TratarString(self, data):
+
+		if '+' in data:
+			data = data.replace('+', '')
+
+		if ',' in data:
+			data = data.replace(',', '')
+
+		if 'N/A' in data:
+			data == np.nan
+
+		if data == '':
+			data = 0
+
+		try:
+			dado = int(dado)
+
+		except:
+			pass
+
+		return data
+
+class TratamentoDados():
+
+	def ParaDataFrame(self, dicio):
+
+		df = pd.DataFrame(dicio).T
+
+		return df
+
+	def ParaExcel(self, df):
+
+		writer = pd.ExcelWriter('out_corona.xlsx', engine = 'openpyxl')
+		df.to_excel(writer, sheet_name = 'analise_corona')
+		writer.save()
