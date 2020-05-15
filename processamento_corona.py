@@ -5,7 +5,7 @@ if __name__ == '__main__':
 	#Determinando limites
 	primeira_linha = 4
 	ultima_linha = 34
-	linha_inexistente = [5]
+	linha_inexistente = [5, 6, 20]
 
 	#Declarando o Dicionário Principal
 	main_dictionary = dict()
@@ -48,6 +48,10 @@ if __name__ == '__main__':
 	tratamento = TratamentoDados()
 
 	df = tratamento.ParaDataFrame(main_dictionary)
-	tratamento.ParaExcel(df)
+
+	df['T.C.P.'] = tratamento.GerarPorcentagem(df, df['Total Cases'])
+	df['T.C.P.'] = tratamento.GerarPorcentagem(df, df['Total Deaths'])
+	df['T.T.P.'] = tratamento.GerarPorcentagem(df, df['Total Tests'])
 
 	print(df)
+	tratamento.ParaExcel(df)
