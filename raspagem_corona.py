@@ -1,4 +1,6 @@
 from selenium import webdriver
+import plotly.express as px
+import plotly.graph_objects as go
 import pandas as pd
 import numpy as np
 
@@ -74,8 +76,73 @@ class TratamentoDados():
 
 	def GerarPorcentagem(self, df, coluna_dataframe):
 
-		soma = coluna_dataframe.sum()
+		soma = df[coluna_dataframe].sum()
+		nova_coluna = 'porcentagem_' + coluna_dataframe
 
-		porcentagem = coluna_dataframe/soma
+		df[nova_coluna] = (df[coluna_dataframe] / soma) * 100
 
-		return porcentagem
+	def LerExcel(self):
+
+		df = pd.read_excel('out_corona.xlsx')
+		df.rename(columns={'Unnamed: 0':'Paises'},
+				inplace=True)
+
+		return df
+
+class TratamentoGraficos():
+
+	def PlotarBarrasComposto(self, df):
+
+		paises = df['Paises']
+
+		fig = go.Figure()
+
+		fig.add_trace(go.Bar(
+		    x=paises,
+		    y=df['Total Cases'],
+		    name='Total de Casos',
+		    marker_color='indianred'
+		))
+		fig.add_trace(go.Bar(
+		    x=paises,
+		    y=df['Total Deaths'],
+		    name='Total de Mortes',
+		    marker_color='lightsalmon'
+		))
+
+		fig.update_layout(
+			barmode='group',
+			xaxis_tickangle=-45,
+			title='Incidencia mundial do virus',
+			xaxis_title='Paises',
+			yaxis_title='People(M)',
+			font=dict(
+		        family="Courier New, monospace",
+		        size=18,
+		        color="#7f7f7f"
+    		)
+		)
+		fig.show()
+
+	def PlotarPizzaMortes(self, df):
+
+		paises = df['Paises']
+
+		fig = px.pie(df, values='Total Deaths', names=paises, title='Relação de mortes por país')
+
+		fig.update_traces(textinfo='label+percent', textposition='inside')
+
+		fig.show()
+
+	def PlotarPizzaTestes(self, df):
+
+		paises = df['Paises']
+		total_testes = df['Total Tests']
+
+		fig = go.Figure(data=[go.Pie(labels=paises, values=total_testes)])
+
+		fig.update_traces(textinfo='label+value', textfont_size=15, textposition='inside')
+
+		fig.update_layout(title='Relação de testes por país')
+
+		fig.show()
