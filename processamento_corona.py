@@ -51,6 +51,7 @@ if __name__ == '__main__':
 
 	#Monta o dataframe com os dados
 	df = tratamento.ParaDataFrame(main_dictionary)
+	df = tratamento.TratarDataFrame(df)
 
 	#Gera porcentagem de casos e mortes totais
 	tratamento.GerarPorcentagem(df, 'Total Cases')
@@ -59,16 +60,13 @@ if __name__ == '__main__':
 	#Gera Excel a partir do dataframe
 	tratamento.ParaExcel(df)
 
-	#Novo dataframe a partir do Excel criado
-	df = tratamento.LerExcel()
-
-	print(df)
-
 	tratamento_grafico = TratamentoGraficos()
 
-	#Plotagem do grafico a partir do dataframe
+	#Plotagem dos graficos a partir do dataframe
 	tratamento_grafico.PlotarBarrasComposto(df)
 
-	tratamento_grafico.PlotarPizzaMortes(df)
+	tratamento_grafico.PlotarGraficosPizza(df)
 
-	tratamento_grafico.PlotarPizzaTestes(df)
+	tratamento_grafico.PlotarGraficoPontos(df)
+
+	tratamento_grafico.PlotarMapa(df)

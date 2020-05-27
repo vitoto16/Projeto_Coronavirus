@@ -1,6 +1,7 @@
 from selenium import webdriver
 import plotly.express as px
 import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 import pandas as pd
 import numpy as np
 
@@ -30,7 +31,7 @@ class RaspagemCorona():
 		return data
 
 	def ParaDicionario(self, heads, data, dicio):
-		4
+		
 		#Criando dicionario de valores
 		full_data = dict(zip(heads, data))
 		full_data.pop(heads[0])
@@ -65,6 +66,13 @@ class TratamentoDados():
 	def ParaDataFrame(self, dicio):
 
 		df = pd.DataFrame(dicio, dtype = np.int64).T
+
+		return df
+
+	def TratarDataFrame(self, df):
+
+		df = df.reset_index()
+		df = df.rename(columns={'index': 'Paises'})
 
 		return df
 
@@ -124,25 +132,79 @@ class TratamentoGraficos():
 		)
 		fig.show()
 
-	def PlotarPizzaMortes(self, df):
+	def PlotarGraficosPizza(self, df):
 
 		paises = df['Paises']
-
-		fig = px.pie(df, values='Total Deaths', names=paises, title='Relação de mortes por país')
-
-		fig.update_traces(textinfo='label+percent', textposition='inside')
-
-		fig.show()
-
-	def PlotarPizzaTestes(self, df):
-
-		paises = df['Paises']
+		total_mortes = df['Total Deaths']
 		total_testes = df['Total Tests']
 
-		fig = go.Figure(data=[go.Pie(labels=paises, values=total_testes)])
+		fig = make_subplots(rows=1, cols=2, specs=[[{'type': 'domain'}, {'type': 'domain'}]])
+		fig.add_trace(go.Pie(labels=paises, values=total_mortes, name='Total de Mortes'),
+						1, 1)
+
+		fig.add_trace(go.Pie(labels=paises, values=total_testes, name='Total de Testes'),
+						1, 2)
 
 		fig.update_traces(textinfo='label+value', textfont_size=15, textposition='inside')
 
-		fig.update_layout(title='Relação de testes por país')
+		fig.update_layout(title_text='Relação de Mortes e Testes Realizados')
+
+		fig.show()
+
+	def PlotarGraficoPontos(self, df):
+
+		paises = df['Paises']
+		novos_casos = df['New Cases']
+		novas_mortes = df['New Deaths']
+
+		fig = go.Figure()
+
+		fig.add_trace(go.Scatter(
+			x = paises,
+			y = novos_casos,
+			marker = dict(color='rgba(0, 200, 0, 1.0)', size=10),
+			mode='markers',
+			name='Novos Casos'
+		))
+
+		fig.add_trace(go.Scatter(
+			x = paises,
+			y = novas_mortes,
+			marker = dict(color='crimson', size=10),
+			mode='markers',
+			name='Novas Mortes'
+		))
+
+		fig.update_layout(title="Relação de Novos Casos e Novas Mortes",
+							xaxis_title='Países',
+							yaxis_title='Pessoas')
+
+		fig.show()
+
+	def PlotarMapa(self, df):
+		df_base = px.data.gapminder()
+
+		df_base = df_base.drop_duplicates(subset='country')
+
+		out_df = df_base[['country', 'iso_alpha', 'continent']]
+		out_df.at[1596, 'country'] = 'UK'
+		out_df.at[1608, 'country'] = 'USA'
+
+		df = df[['Paises', 'Total Cases']]
+
+		final_df = out_df.merge(df, left_on='country', right_on='Paises')
+
+		fig = px.scatter_geo(final_df, locations="iso_alpha", color="continent",
+                     hover_name="country", size="Total Cases",
+                     projection="natural earth")
+
+		fig.update_layout(
+			title='Numero Total de Casos COVID-19',
+			font=dict(
+		        family="Courier New, monospace",
+		        size=18,
+		        color="#7f7f7f"
+    		)
+		)
 
 		fig.show()
