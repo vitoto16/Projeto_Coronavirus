@@ -5,206 +5,201 @@ from plotly.subplots import make_subplots
 import pandas as pd
 import numpy as np
 
-class RaspagemCorona():
 
-	def __init__(self):
+class RaspagemCorona:
 
-		#Designando o driver
-		self.driver = webdriver.Chrome()
+    def __init__(self):
 
-		#Acessando o site
-		self.driver.get('https://www.worldometers.info/coronavirus/')
+        # Designando o driver
+        self.driver = webdriver.Chrome()
+
+        # Acessando o site
+        self.driver.get('https://www.worldometers.info/coronavirus/')
+
+    def cabecalhos(self, coluna):
+
+        # Coletando cabeçalhos
+        heads = self.driver.find_element_by_xpath(
+            '//*[@id="main_table_countries_today"]/thead/tr/th[{}]'.format(coluna)).text
+
+        return heads
+
+    def raspar_dados(self, linha, coluna):
+
+        # Coletando dados
+        data = self.driver.find_element_by_xpath(
+            '//*[@id="main_table_countries_today"]/tbody[1]/tr[{}]/td[{}]'.format(linha, coluna)).text
+
+        return data
+
+    def para_dicionario(self, heads, data, dicio):
+
+        # Criando dicionario de valores
+        full_data = dict(zip(heads, data))
+        full_data.pop(heads[0])
+
+        # Incorporando país como chave e dados como valores
+        dicio[data[0]] = full_data
+
+    # Preparando os numeros para DataFrame
+    def tratar_string(self, data):
+
+        if '+' in data:
+            data = data.replace('+', '')
+
+        if ',' in data:
+            data = data.replace(',', '')
+
+        if 'N/A' in data:
+            data = np.nan
+            return data
+
+        if data == '':
+            data = 0
+            return data
+
+        if not data.isalpha():
+            data = int(data)
+
+        return data
 
 
-	def Cabecalhos(self, coluna):
-		
-		#Coletando cabeçalhos
-		heads = self.driver.find_element_by_xpath('//*[@id="main_table_countries_today"]/thead/tr/th[{}]'.format(coluna)).text
+class TratamentoDados:
 
-		return heads
+    def para_data_frame(self, dicio):
+        df = pd.DataFrame(dicio, dtype=np.int64).T
 
-	def RasparDados(self, linha, coluna):
+        return df
 
-		#Coletando dados
-		data = self.driver.find_element_by_xpath('//*[@id="main_table_countries_today"]/tbody[1]/tr[{}]/td[{}]'.format(linha, coluna)).text
+    def tratar_data_frame(self, df):
+        df = df.reset_index()
+        df = df.rename(columns={'index': 'Paises'})
 
-		return data
+        return df
 
-	def ParaDicionario(self, heads, data, dicio):
-		
-		#Criando dicionario de valores
-		full_data = dict(zip(heads, data))
-		full_data.pop(heads[0])
-		
-		#Incorporando país como chave e dados como valores
-		dicio[data[0]] = full_data
+    def para_excel(self, df):
+        writer = pd.ExcelWriter('out_corona.xlsx', engine='openpyxl')
+        df.to_excel(writer, sheet_name='analise_corona')
+        writer.save()
 
-	#Preparando os numeros para DataFrame
-	def TratarString(self, data):
+    def gerar_porcentagem(self, df, coluna_dataframe):
+        soma = df[coluna_dataframe].sum()
+        nova_coluna = 'porcentagem_' + coluna_dataframe
 
-		if '+' in data:
-			data = data.replace('+', '')
+        df[nova_coluna] = (df[coluna_dataframe] / soma) * 100
 
-		if ',' in data:
-			data = data.replace(',', '')
+    def ler_excel(self):
+        df = pd.read_excel('out_corona.xlsx')
+        df.rename(columns={'Unnamed: 0': 'Paises'}, inplace=True)
 
-		if 'N/A' in data:
-			data = np.nan
-			return data
+        return df
 
-		if data == '':
-			data = 0
-			return data
 
-		if not data.isalpha():
-			data = int(data)
+class TratamentoGraficos:
 
-		return data
+    def plotar_barras_composto(self, df):
+        paises = df['Paises']
 
-class TratamentoDados():
+        fig = go.Figure()
 
-	def ParaDataFrame(self, dicio):
+        fig.add_trace(go.Bar(
+            x=paises,
+            y=df['Total Cases'],
+            name='Total de Casos',
+            marker_color='indianred'
+        ))
+        fig.add_trace(go.Bar(
+            x=paises,
+            y=df['Total Deaths'],
+            name='Total de Mortes',
+            marker_color='lightsalmon'
+        ))
 
-		df = pd.DataFrame(dicio, dtype = np.int64).T
+        fig.update_layout(
+            barmode='group',
+            xaxis_tickangle=-45,
+            title='Incidencia mundial do virus',
+            xaxis_title='Paises',
+            yaxis_title='People(M)',
+            font=dict(
+                family="Courier New, monospace",
+                size=18,
+                color="#7f7f7f"
+            )
+        )
+        fig.show()
 
-		return df
+    def plotar_graficos_pizza(self, df):
+        paises = df['Paises']
+        total_mortes = df['Total Deaths']
+        total_testes = df['Total Tests']
 
-	def TratarDataFrame(self, df):
+        fig = make_subplots(rows=1, cols=2, specs=[[{'type': 'domain'}, {'type': 'domain'}]])
+        fig.add_trace(go.Pie(labels=paises, values=total_mortes, name='Total de Mortes'),
+                      1, 1)
 
-		df = df.reset_index()
-		df = df.rename(columns={'index': 'Paises'})
+        fig.add_trace(go.Pie(labels=paises, values=total_testes, name='Total de Testes'),
+                      1, 2)
 
-		return df
+        fig.update_traces(textinfo='label+value', textfont_size=15, textposition='inside')
 
-	def ParaExcel(self, df):
+        fig.update_layout(title_text='Relação de Mortes e Testes Realizados')
 
-		writer = pd.ExcelWriter('out_corona.xlsx', engine = 'openpyxl')
-		df.to_excel(writer, sheet_name = 'analise_corona')
-		writer.save()
+        fig.show()
 
-	def GerarPorcentagem(self, df, coluna_dataframe):
+    def plotar_grafico_pontos(self, df):
+        paises = df['Paises']
+        novos_casos = df['New Cases']
+        novas_mortes = df['New Deaths']
 
-		soma = df[coluna_dataframe].sum()
-		nova_coluna = 'porcentagem_' + coluna_dataframe
+        fig = go.Figure()
 
-		df[nova_coluna] = (df[coluna_dataframe] / soma) * 100
+        fig.add_trace(go.Scatter(
+            x=paises,
+            y=novos_casos,
+            marker=dict(color='rgba(0, 200, 0, 1.0)', size=10),
+            mode='markers',
+            name='Novos Casos'
+        ))
 
-	def LerExcel(self):
+        fig.add_trace(go.Scatter(
+            x=paises,
+            y=novas_mortes,
+            marker=dict(color='crimson', size=10),
+            mode='markers',
+            name='Novas Mortes'
+        ))
 
-		df = pd.read_excel('out_corona.xlsx')
-		df.rename(columns={'Unnamed: 0':'Paises'},
-				inplace=True)
+        fig.update_layout(title="Relação de Novos Casos e Novas Mortes",
+                          xaxis_title='Países',
+                          yaxis_title='Pessoas')
 
-		return df
+        fig.show()
 
-class TratamentoGraficos():
+    def plotar_mapa(self, df):
+        df_base = px.data.gapminder()
 
-	def PlotarBarrasComposto(self, df):
+        df_base = df_base.drop_duplicates(subset='country')
 
-		paises = df['Paises']
+        out_df = df_base[['country', 'iso_alpha', 'continent']]
+        out_df.at[1596, 'country'] = 'UK'
+        out_df.at[1608, 'country'] = 'USA'
 
-		fig = go.Figure()
+        df = df[['Paises', 'Total Cases']]
 
-		fig.add_trace(go.Bar(
-		    x=paises,
-		    y=df['Total Cases'],
-		    name='Total de Casos',
-		    marker_color='indianred'
-		))
-		fig.add_trace(go.Bar(
-		    x=paises,
-		    y=df['Total Deaths'],
-		    name='Total de Mortes',
-		    marker_color='lightsalmon'
-		))
+        final_df = out_df.merge(df, left_on='country', right_on='Paises')
 
-		fig.update_layout(
-			barmode='group',
-			xaxis_tickangle=-45,
-			title='Incidencia mundial do virus',
-			xaxis_title='Paises',
-			yaxis_title='People(M)',
-			font=dict(
-		        family="Courier New, monospace",
-		        size=18,
-		        color="#7f7f7f"
-    		)
-		)
-		fig.show()
+        fig = px.scatter_geo(final_df, locations="iso_alpha", color="continent",
+                             hover_name="country", size="Total Cases",
+                             projection="natural earth")
 
-	def PlotarGraficosPizza(self, df):
+        fig.update_layout(
+            title='Numero Total de Casos COVID-19',
+            font=dict(
+                family="Courier New, monospace",
+                size=18,
+                color="#7f7f7f"
+            )
+        )
 
-		paises = df['Paises']
-		total_mortes = df['Total Deaths']
-		total_testes = df['Total Tests']
-
-		fig = make_subplots(rows=1, cols=2, specs=[[{'type': 'domain'}, {'type': 'domain'}]])
-		fig.add_trace(go.Pie(labels=paises, values=total_mortes, name='Total de Mortes'),
-						1, 1)
-
-		fig.add_trace(go.Pie(labels=paises, values=total_testes, name='Total de Testes'),
-						1, 2)
-
-		fig.update_traces(textinfo='label+value', textfont_size=15, textposition='inside')
-
-		fig.update_layout(title_text='Relação de Mortes e Testes Realizados')
-
-		fig.show()
-
-	def PlotarGraficoPontos(self, df):
-
-		paises = df['Paises']
-		novos_casos = df['New Cases']
-		novas_mortes = df['New Deaths']
-
-		fig = go.Figure()
-
-		fig.add_trace(go.Scatter(
-			x = paises,
-			y = novos_casos,
-			marker = dict(color='rgba(0, 200, 0, 1.0)', size=10),
-			mode='markers',
-			name='Novos Casos'
-		))
-
-		fig.add_trace(go.Scatter(
-			x = paises,
-			y = novas_mortes,
-			marker = dict(color='crimson', size=10),
-			mode='markers',
-			name='Novas Mortes'
-		))
-
-		fig.update_layout(title="Relação de Novos Casos e Novas Mortes",
-							xaxis_title='Países',
-							yaxis_title='Pessoas')
-
-		fig.show()
-
-	def PlotarMapa(self, df):
-		df_base = px.data.gapminder()
-
-		df_base = df_base.drop_duplicates(subset='country')
-
-		out_df = df_base[['country', 'iso_alpha', 'continent']]
-		out_df.at[1596, 'country'] = 'UK'
-		out_df.at[1608, 'country'] = 'USA'
-
-		df = df[['Paises', 'Total Cases']]
-
-		final_df = out_df.merge(df, left_on='country', right_on='Paises')
-
-		fig = px.scatter_geo(final_df, locations="iso_alpha", color="continent",
-                     hover_name="country", size="Total Cases",
-                     projection="natural earth")
-
-		fig.update_layout(
-			title='Numero Total de Casos COVID-19',
-			font=dict(
-		        family="Courier New, monospace",
-		        size=18,
-		        color="#7f7f7f"
-    		)
-		)
-
-		fig.show()
+        fig.show()
